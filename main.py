@@ -13,7 +13,9 @@ tokens = (
     'STACKASCII',
     'LPAREN',
     'RPAREN',
-    'EXPO'
+    'EXPO',
+    'STRING',
+    'GETSTACK'
 )
 
 t_ADD = r"\+"
@@ -27,6 +29,8 @@ t_STACKASCII = r"stackascii"
 t_LPAREN = r"\("
 t_RPAREN = r"\)"
 t_EXPO = r"\^"
+t_STRING = r"\"(.*?)\""
+t_GETSTACK = r"(getstack)|(gs)"
 
 
 def t_NUMBER(t):
@@ -49,6 +53,7 @@ def t_error(t):
 t_ignore = ' \t\n'
 
 stack = []
+variables = {}
 
 lexer = lex.lex()
 
@@ -61,6 +66,21 @@ def p_expression_operators(t):
                | NUMBER MULTIPLY NUMBER
                | NUMBER DIVIDE NUMBER
                | NUMBER EXPO NUMBER
+               | NAME ADD NUMBER
+               | NAME SUBTRACT NUMBER
+               | NAME MULTIPLY NUMBER
+               | NAME DIVIDE NUMBER
+               | NAME EXPO NUMBER
+               | NUMBER ADD NAME
+               | NUMBER SUBTRACT NAME
+               | NUMBER MULTIPLY NAME
+               | NUMBER DIVIDE NAME
+               | NUMBER EXPO NAME
+               | NAME ADD NAME
+               | NAME SUBTRACT NAME
+               | NAME MULTIPLY NAME
+               | NAME DIVIDE NAME
+               | NAME EXPO NAME
     '''
     if t[2] == "+":
         t[0] = t[1] + t[3]
@@ -80,10 +100,12 @@ def p_greet(t):
     print(f"{r}, {t[3]}!")
 
 def p_pushstack(t):
-    'expression : NAME LPAREN NUMBER RPAREN'
+    '''
+    expression : NAME LPAREN NUMBER RPAREN
+               | NAME LPAREN STRING LPAREN RPAREN RPAREN
+    '''
     if t[1] == "stack":
         stack.append(t[3])
-        print(f"Pushed {t[3]} to stack")
     else:
         print(f"{t[1]} could not be identified")
 
@@ -94,17 +116,54 @@ def p_asciistack(t):
         ret = ret + chr(int(x))
     print(ret)
 
+def p_getstack(t):
+    '''
+    expression : GETSTACK LPAREN NUMBER RPAREN
+               | GETSTACK LPAREN STRING RPAREN
+    '''
+    if isinstance(t[3],int):
+        t[0] = stack[int(t[3])]
+    elif isinstance(t[3],str):
+        t[0] = [s for s in stack if t[3] == s]
+
+def p_declarevariable(t):
+    '''
+    expression : NAME EQUALS NUMBER
+               | NAME EQUALS STRING
+    '''
+    if str(t[1]) in variables:
+        variables[str(t[1])] = t[3]
+    else:
+        variables[t[1]] = t[3]
+
+def p_usevariable(t):
+    '''
+    expression : NAME
+    '''
+    if str(t[1]) in variables:
+        t[0] = variables[str(t[1])]
+    else:
+        print(f"Error: variable '{t[1]}' does not exist in the current context")
+
 def p_error(t):
     if t is None: # lexer error
+        print(f"Syntax Error: NONETYPE")
         return
     print(f"Syntax Error: {t.value!r}")
 
 parser = yacc.yacc()
 
+lines = 0
+
 if __name__ == "__main__":
     with open('jaelang.txt') as tf:
         s = tf.readlines()
         for line in s:
+           lines = lines + 1
            parsed = parser.parse(line)
-           print(parsed)
+           if parsed != None:
+            print(f"Line {str(lines)}: {parsed}")
+    print("\n\n")
+    print(" The program has finished")
     print(f"Stack: {stack}")
+    print(f"Variables: {variables}")

@@ -1,0 +1,2 @@
+niceMessage="Hello, world! i wuv u :shy:"
+niceMessage
